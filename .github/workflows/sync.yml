@@ -1,9 +1,9 @@
 name: Sync WC2026 scores
 
 on:
-  workflow_dispatch:  # ← allows manual trigger
+  workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *'  # every 2 hours
+    - cron: '0 */2 * * *'
 
 jobs:
   sync:
@@ -11,5 +11,7 @@ jobs:
     steps:
       - name: Call sync script
         run: |
-          curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+          curl -c cookies.txt -b cookies.txt \
+          -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+          -L \
           "https://wc2026.free.nf/sync_cron.php"
