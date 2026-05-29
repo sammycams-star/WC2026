@@ -1,0 +1,14 @@
+name: Sync WC2026 scores
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'  # every 2 hours
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call sync script
+        run: |
+          curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+          "https://wc2026.free.nf/sync_cron.php"
