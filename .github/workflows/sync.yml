@@ -9,9 +9,56 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Call sync script
+      - name: Install PHP mysqli
+        run: sudo apt-get install -y php-cli php-mysqli
+
+      - name: Create sync script
         run: |
-          curl -c cookies.txt -b cookies.txt \
-          -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-          -L \
-          "https://wc2026.free.nf/sync_cron.php"
+          cat > sync.php << 'EOF'
+          <?php
+          $conn = mysqli_connect('sql107.infinityfree.com', 'if0_39841012', '3Xz4Y6gBT5e', 'if0_39841012_pronostiek');
+
+          if (!$conn) {
+              die("DB connection failed: " . mysqli_connect_error());
+          }
+          echo "Connected to DB\n";
+
+          $ch = curl_init('https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json');
+          curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+          $json = curl_exec($ch);
+          curl_close($ch);
+
+          if (!$json) {
+              die("Could not fetch JSON!\n");
+          }
+
+          $data = json_decode($json, true);
+          echo "Matches found: " . count($data['matches']) . "\n";
+
+          // FAKE SCORE FOR TESTING - remove later!
+          $data['matches'][0]['score1'] = 3;
+          $data['matches'][0]['score2'] = 1;
+
+          $updated = 0;
+          foreach ($data['matches'] as $index => $match) {
+              $matchNum  = $index + 1;
+              $homeGoals = isset($match['score1']) ? $match['score1'] : null;
+              $awayGoals = isset($match['score2']) ? $match['score2'] : null;
+
+              if ($homeGoals !== null && $awayGoals !== null) {
+                  if ($homeGoals > $awayGoals)     $uitslag = '1';
+                  elseif ($homeGoals < $awayGoals) $uitslag = '2';
+                  else                             $uitslag = 'X';
+
+                  mysqli_query($conn, "UPDATE wedstrijden SET thuisdoel='$homeGoals', uitdoel='$awayGoals', uitslag='$uitslag' WHERE id=$matchNum");
+                  mysqli_query($conn, "UPDATE Pronostieken SET uitslagthuis='$homeGoals', uitslaguit='$awayGoals', uitslag='$uitslag' WHERE wedstrijdid=$matchNum");
+
+                  echo "Updated match $matchNum: $homeGoals - $awayGoals ($uitslag)\n";
+                  $updated++;
+              }
+          }
+          echo "Done! $updated matches updated.\n";
+          EOF
+
+      - name: Run sync
+        run: php sync.php
